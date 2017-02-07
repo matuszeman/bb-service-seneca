@@ -1,0 +1,22 @@
+{
+  "name": "bb-service-seneca",
+  "version": "0.1.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "docs": "jsdoc2md --configure jsdoc.json --template README.hbs \"src/**/*.js\" > README.md"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "bluebird": "^3.4.6",
+    "co": "^4.6.0",
+    "is-generator": "^1.0.3",
+    "lodash": "^4.17.2"
+  },
+  "devDependencies": {
+    "jsdoc-strip-async-await": "^0.1.0",
+    "jsdoc-to-markdown": "^2.0.1"
+  }
+}
