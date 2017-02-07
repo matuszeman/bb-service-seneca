@@ -94,7 +94,11 @@ class SenecaFactory {
 
     function wrapper(thisArg, fn) {
       return function(args, done) {
-        let func = _.bind(fn, thisArg, args);
+        //ignore seneca params
+        const params = _.omitBy(args, (val, key) => {
+          return _.endsWith(key, '$') || _.includes(['role', 'cmd'], key);
+        });
+        let func = _.bind(fn, thisArg, params);
 
         if (isGeneratorFn(fn)) {
           func = co.wrap(func);
