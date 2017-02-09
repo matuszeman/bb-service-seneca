@@ -1,6 +1,7 @@
 'use strict';
 
 const _ = require('lodash');
+const Joi = require('joi');
 const bluebird = require('bluebird');
 const isGeneratorFn = require('is-generator').fn;
 const co = require('co');
@@ -10,18 +11,87 @@ const co = require('co');
  */
 class SenecaFactory {
   /**
+   * TODO
+   *
+   * @param {Object} config
+   * @param {SenecaClient} senecaClient
+   * @returns {Object} Proxy services created
+   */
+  static createProxyServices(config, senecaClient) {
+    const endpoints = {};
+    const services  = {};
+    _.each(config.endpoints, (opts, name) => {
+      opts.pins = [];
+      endpoints[name] = opts;
+    });
+
+    _.each(config.services, (opts, name) => {
+      let endpoint;
+      if (_.isString(opts)) {
+        endpoint = endpoints[opts];
+        opts = {};
+      } else {
+        endpoint = endpoints[opts.endpoint];
+        delete opts.endpoint;
+      }
+
+      if (!endpoint) {
+        throw new Error('Endpoint does not exist');
+      }
+
+      const serviceName = opts.service || name;
+      delete opts.service;
+
+      endpoint.pins.push({
+        bbservice: serviceName
+      });
+
+      services[name] = SenecaFactory.createProxyService(
+        serviceName,
+        senecaClient,
+        opts
+      );
+    });
+
+    _.each(endpoints, (opts) => {
+      senecaClient.seneca.client(opts);
+    });
+
+    return services;
+  }
+
+  /**
    * Creates local-like service proxying to seneca client
    *
-   * @param {string} role
+   * If used in environment where Proxy class is not available define `opts.methods` parameter.
+   * This creates plain object with methods defined instead of using Proxy.
+   *
+   * @param {string} serviceName
    * @param {SenecaClient} senecaClient
-   * @returns {Proxy}
+   * @param {Object} opts
+   * @param {Array} [opts.methods] Array of methods to proxy (creates plain object instead of using Proxy)
+   * @returns {Object|Proxy}
    */
-  static createProxyService(role, senecaClient) {
+  static createProxyService(serviceName, senecaClient, opts) {
+    opts = Joi.attempt(opts, Joi.object().keys({
+      methods: Joi.array().items(Joi.string()).min(1)
+    }).default({}));
+
+    if (opts.methods) {
+      const obj = {};
+      _.each(opts.methods, (method) => {
+        obj[method] = function() {
+          return senecaClient.act(serviceName, method, arguments[0]);
+        }
+      });
+      return obj;
+    }
+
     const obj = {};
     const handler = {
       get(target, propKey, receiver) {
         return function() {
-          return senecaClient.act(role, propKey, arguments[0]);
+          return senecaClient.act(serviceName, propKey, arguments[0]);
         }
       }
     };
@@ -32,18 +102,39 @@ class SenecaFactory {
   /**
    * Creates seneca plugin from the service class instance
    *
-   * @param {Object} service
+   * Exposes each service method with action pattern:
+   *
+   *  - bbservice - service name
+   *  - bbmethod - method name
+   *
+   * @param {Object} obj Service instance
    * @param {Object} opts
+   * @param {Array} opts.methods Service methods to expose
+   * @param {string} [opts.service] Service name (default: object's constructor name)
+   * @param {string} [opts.pluginName] Seneca plugin name (default: service name)
+   * @param {string} [opts.initMethod] Register service method as Seneca initialization action http://senecajs.org/docs/tutorials/how-to-write-a-plugin.html#wp-init
+   * @param {Object} [opts.logger] Logger { log: fn }
    * @returns {Function} Seneca plugin
    */
-  static createPlugin(service, opts) {
-    const pluginName = opts.name || service.constructor.name;
-    const role = opts.role || pluginName;
-    if (!pluginName || !role) {
-      throw new Error('Both name and role needs to be specified');
+  static createPlugin(obj, opts) {
+    opts = Joi.attempt(opts, {
+      service: Joi.string().default(obj.constructor.name),
+      pluginName: Joi.string(),
+      methods: Joi.array().items(Joi.string()).min(1).required(),
+      initMethod: Joi.string(),
+      logger: Joi.object().keys({
+        log: Joi.func().required()
+      })
+    });
+    const service = opts.service;
+    const methods = opts.methods;
+    let pluginName = service;
+    if (opts.pluginName) {
+      pluginName = opts.pluginName;
     }
 
-    let expose = opts.expose;
+    const logger = opts.logger || { log: function() {} };
+
     //if (!expose) {
     //  expose = [];
     //  //find methods to expose
@@ -56,31 +147,27 @@ class SenecaFactory {
     //  }
     //}
 
-    if (_.isEmpty(expose)) {
-      throw new Error('No methods to expose as seneca commands from the service');
-    }
-
     const actions = [];
-    if (service.init) {
+    if (opts.initMethod) {
       actions.push({
         args: {
           init: pluginName
         },
-        fn: wrapper(service, service.init)
+        fn: wrapper(obj, obj.initMethod)
       });
     }
 
-    for (let method of expose) {
+    for (let method of methods) {
       actions.push({
         args: {
-          role: role,
-          cmd: method
+          bbservice: service,
+          bbmethod: method
         },
-        fn: wrapper(service, service[method])
+        fn: wrapper(obj, obj[method])
       });
     }
 
-    return function(options) {
+    return function() {
       const seneca = this;
 
       for (let action of actions) {
@@ -96,7 +183,7 @@ class SenecaFactory {
       return function(args, done) {
         //ignore seneca params
         const params = _.omitBy(args, (val, key) => {
-          return _.endsWith(key, '$') || _.includes(['role', 'cmd'], key);
+          return _.endsWith(key, '$') || _.includes(['bbservice', 'bbmethod'], key);
         });
         let func = _.bind(fn, thisArg, params);
 
@@ -104,7 +191,36 @@ class SenecaFactory {
           func = co.wrap(func);
         }
 
-        bluebird.try(func).asCallback(done);
+        const req = {
+          type: 'request',
+          ts: new Date().toISOString(),
+          service: args.bbservice,
+          method: args.bbmethod,
+          params: params
+        };
+        logger.log(req);
+
+        bluebird.try(func).then((ret) => {
+          logger.log({
+            type: 'response',
+            ts: new Date().toISOString(),
+            service: args.bbservice,
+            method: args.bbmethod,
+            response: ret,
+            request: req
+          });
+          done(null, ret);
+        }, (err) => {
+          logger.log({
+            type: 'error',
+            ts: new Date().toISOString(),
+            service: args.bbservice,
+            method: args.bbmethod,
+            error: err,
+            request: req
+          });
+          done(err);
+        });
       }
     }
   }
