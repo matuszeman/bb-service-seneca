@@ -1,20 +1,25 @@
 {
-  "name": "bb-service-seneca",
-  "version": "0.2.0",
+  "name": "@kapitchi/bb-service-seneca",
+  "version": "0.1.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "docs": "jsdoc2md --configure jsdoc.json --template README.hbs \"src/**/*.js\" > README.md"
+    "build": "npm run docs",
+    "docs": "jsdoc2md --configure jsdoc.json --template README.hbs.md \"src/**/*.js\" > README.md"
   },
-  "author": "",
+  "author": "Matus Zeman <matus.zeman@gmail.com>",
   "license": "MIT",
   "dependencies": {
+    "@kapitchi/bb-service": "^1.4.0",
     "bluebird": "^3.4.6",
     "co": "^4.6.0",
     "is-generator": "^1.0.3",
     "joi": "^10.2.1",
     "lodash": "^4.17.2"
+  },
+  "peerDependencies": {
+    "seneca": "^3.0"
   },
   "devDependencies": {
     "jsdoc-strip-async-await": "^0.1.0",

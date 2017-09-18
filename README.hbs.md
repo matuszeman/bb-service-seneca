@@ -5,7 +5,7 @@ Seneca related service tools.
 # Installation
 
 ```
-npm install matuszeman/bb-service-seneca
+npm install @kapitchi/bb-service-seneca
 ```
 
 # Usage

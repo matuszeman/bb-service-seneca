@@ -5,7 +5,7 @@ Seneca related service tools.
 # Installation
 
 ```
-npm install matuszeman/bb-service-seneca
+npm install @kapitchi/bb-service-seneca
 ```
 
 # Usage
@@ -23,6 +23,8 @@ TODO
 <dt><a href="#SenecaFactory">SenecaFactory</a></dt>
 <dd><p>Seneca factory</p>
 </dd>
+<dt><a href="#SenecaServer">SenecaServer</a></dt>
+<dd></dd>
 </dl>
 
 <a name="SenecaClient"></a>
@@ -34,7 +36,6 @@ Seneca client
 
 * [SenecaClient](#SenecaClient)
     * [new SenecaClient(seneca)](#new_SenecaClient_new)
-    * [.setLogger(logger)](#SenecaClient+setLogger)
     * [.act(serviceName, method, params)](#SenecaClient+act) ⇒ <code>Promise</code>
 
 <a name="new_SenecaClient_new"></a>
@@ -44,17 +45,6 @@ Seneca client
 | Param | Type |
 | --- | --- |
 | seneca | <code>Seneca</code> | 
-
-<a name="SenecaClient+setLogger"></a>
-
-### senecaClient.setLogger(logger)
-Sets logger
-
-**Kind**: instance method of <code>[SenecaClient](#SenecaClient)</code>  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| logger | <code>Object</code> | Logger { log: fn } |
 
 <a name="SenecaClient+act"></a>
 
@@ -139,3 +129,40 @@ Exposes each service method with action pattern:
 | [opts.initMethod] | <code>string</code> | Register service method as Seneca initialization action http://senecajs.org/docs/tutorials/how-to-write-a-plugin.html#wp-init |
 | [opts.logger] | <code>Object</code> | Logger { log: fn } |
 
+<a name="SenecaServer"></a>
+
+## SenecaServer
+**Kind**: global class  
+
+* [SenecaServer](#SenecaServer)
+    * [new SenecaServer(senecaServerOpts, senecaServerExposedServices)](#new_SenecaServer_new)
+    * [.listen()](#SenecaServer+listen) ⇒ <code>Promise.&lt;void&gt;</code>
+
+<a name="new_SenecaServer_new"></a>
+
+### new SenecaServer(senecaServerOpts, senecaServerExposedServices)
+
+| Param | Type | Description |
+| --- | --- | --- |
+| senecaServerOpts | <code>Object</code> |  |
+| senecaServerOpts.port | <code>number</code> |  |
+| senecaServerOpts.params | <code>Object</code> | Seneca params |
+| senecaServerExposedServices | <code>Object</code> | Services to expose |
+
+**Example**  
+```js
+const server = new SenecaServer({
+ port: 8080
+}, {
+ myService: {
+   instance: myServiceImp //service object
+   methods: ['firstMethod', 'otherMethod']
+ }
+})
+```
+<a name="SenecaServer+listen"></a>
+
+### senecaServer.listen() ⇒ <code>Promise.&lt;void&gt;</code>
+Start seneca server
+
+**Kind**: instance method of <code>[SenecaServer](#SenecaServer)</code>  

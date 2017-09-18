@@ -180,6 +180,7 @@ class SenecaFactory {
     };
 
     function wrapper(thisArg, fn) {
+      const isGenerator = isGeneratorFn(fn);
       return function(args, done) {
         //ignore seneca params
         const params = _.omitBy(args, (val, key) => {
@@ -187,7 +188,7 @@ class SenecaFactory {
         });
         let func = _.bind(fn, thisArg, params);
 
-        if (isGeneratorFn(fn)) {
+        if (isGenerator) {
           func = co.wrap(func);
         }
 

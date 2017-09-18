@@ -1,32 +1,18 @@
-'use strict';
+const {AbstractService} = require('@kapitchi/bb-service');
 
 const _ = require('lodash');
-const bluebird = require('bluebird');
 const Joi = require('joi');
 
 /**
  * Seneca client
  */
-class SenecaClient {
+class SenecaClient extends AbstractService {
   /**
    * @param {Seneca} seneca
    */
   constructor(seneca) {
+    super();
     this.seneca = seneca;
-    this.logger = {
-      log: function(log) {}
-    };
-  }
-
-  /**
-   * Sets logger
-   * @param {Object} logger Logger { log: fn }
-   */
-  setLogger(logger) {
-    Joi.attempt(logger, {
-      log: Joi.func().required()
-    });
-    this.logger = logger;
   }
 
   /**
